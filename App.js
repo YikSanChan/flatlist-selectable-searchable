@@ -4,10 +4,12 @@ import {
   TouchableOpacity,
   FlatList,
   StyleSheet,
-  Text
+  Text,
+  View
 } from "react-native";
 import Constants from "expo-constants";
 import { Set } from "immutable";
+import { Button, Icon, SearchBar } from "react-native-elements";
 
 const DATA = [
   {
@@ -24,10 +26,10 @@ const DATA = [
   }
 ];
 
-const Item = ({ id, title, selected, onSelect }) => {
+const Item = ({ id, title, selected, onClick }) => {
   return (
     <TouchableOpacity
-      onPress={() => onSelect(id)}
+      onPress={() => onClick(id)}
       style={[
         styles.item,
         { backgroundColor: selected ? "#6e3b6e" : "#f9c2ff" }
@@ -38,7 +40,7 @@ const Item = ({ id, title, selected, onSelect }) => {
   );
 };
 
-const Items = ({ data, selected, onSelect }) => {
+const Items = ({ data, selected, onClick }) => {
   return (
     <FlatList
       data={data}
@@ -47,7 +49,7 @@ const Items = ({ data, selected, onSelect }) => {
           id={item.id}
           title={item.title}
           selected={!!selected.get(item.id)}
-          onSelect={onSelect}
+          onClick={onClick}
         />
       )}
       keyExtractor={item => item.id}
@@ -58,21 +60,82 @@ const Items = ({ data, selected, onSelect }) => {
 
 const App = () => {
   const [selected, setSelected] = React.useState(Set());
+  const [searchKey, setSearchKey] = React.useState("");
+  const [searched, setSearched] = React.useState(DATA);
+  const [mode, setMode] = React.useState("search");
 
-  const onSelect = React.useCallback(
-    id => {
-      const newSelected = selected.has(id)
-        ? selected.delete(id)
-        : selected.add(id);
-      setSelected(newSelected);
+  const header = {
+    search: (
+      <SearchBar
+        placeholder="Type Here..."
+        onChangeText={text => {
+          setSearchKey(text);
+          setSearched(
+            DATA.filter(item =>
+              item.title.toLowerCase().includes(text.toLowerCase())
+            )
+          );
+        }}
+        value={searchKey}
+      />
+    ),
+    select: (
+      <View
+        style={{ flexDirection: "row", justifyContent: "flex-end", height: 58 }}
+      >
+        <Icon
+          name="printer"
+          type="antdesign"
+          onPress={() => console.log(`Print ${selected}`)}
+        />
+        <Icon
+          name="delete"
+          type="antdesign"
+          onPress={() => console.log(`Delete ${selected}`)}
+        />
+      </View>
+    )
+  };
+
+  const data = {
+    search: searched,
+    select: DATA
+  };
+
+  const onClick = {
+    search: id => console.log(`Press on ${id}`),
+    select: React.useCallback(
+      id => {
+        const newSelected = selected.has(id)
+          ? selected.delete(id)
+          : selected.add(id);
+        setSelected(newSelected);
+      },
+      [selected]
+    )
+  };
+
+  const buttonTitle = {
+    search: "Select",
+    select: "Search"
+  };
+
+  const buttonOnPress = {
+    search: () => {
+      setMode("select");
+      setSearched(DATA);
     },
-    [selected]
-  );
+    select: () => {
+      setMode("search");
+      setSelected(Set());
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text>{JSON.stringify(selected, null, 2)}</Text>
-      <Items data={DATA} selected={selected} onSelect={onSelect} />
+      {header[mode]}
+      <Items data={data[mode]} selected={selected} onClick={onClick[mode]} />
+      <Button title={buttonTitle[mode]} onPress={buttonOnPress[mode]} />
     </SafeAreaView>
   );
 };
@@ -82,13 +145,13 @@ export default App;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    marginTop: Constants.statusBarHeight
+    marginTop: Constants.statusBarHeight,
+    marginHorizontal: 16
   },
   item: {
     backgroundColor: "#f9c2ff",
     padding: 20,
-    marginVertical: 8,
-    marginHorizontal: 16
+    marginVertical: 8
   },
   title: {
     fontSize: 32
