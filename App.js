@@ -1,68 +1,62 @@
-import React from "react";
-import {
-  SafeAreaView,
-  TouchableOpacity,
-  FlatList,
-  StyleSheet,
-  Text,
-  View
-} from "react-native";
+import React, { useEffect, useState } from "react";
+import { SafeAreaView, FlatList, StyleSheet, View } from "react-native";
 import Constants from "expo-constants";
 import { Set } from "immutable";
-import { Button, Icon, SearchBar } from "react-native-elements";
+import { Button, Icon, ListItem, SearchBar } from "react-native-elements";
+import axios from "axios";
 
-const DATA = [
-  {
-    id: "bd7acbea-c1b1-46c2-aed5-3ad53abb28ba",
-    title: "First Item"
-  },
-  {
-    id: "3ac68afc-c605-48d3-a4f8-fbd91aa97f63",
-    title: "Second Item"
-  },
-  {
-    id: "58694a0f-3da1-471f-bd96-145571e29d72",
-    title: "Third Item"
-  }
-];
-
-const Item = ({ id, title, selected, onClick }) => {
+const Item = ({ id, title, avatarUrl, selected, onClick }) => {
+  console.log(`rendering item ${id}`);
   return (
-    <TouchableOpacity
-      onPress={() => onClick(id)}
-      style={[
+    <ListItem
+      title={title}
+      leftAvatar={{ source: { uri: avatarUrl } }}
+      containerStyle={[
         styles.item,
         { backgroundColor: selected ? "#6e3b6e" : "#f9c2ff" }
       ]}
-    >
-      <Text style={styles.title}>{title}</Text>
-    </TouchableOpacity>
+      underlayColor="transparent"
+      onPress={() => onClick(id)}
+    />
   );
 };
 
 const Items = ({ data, selected, onClick }) => {
+  console.log("rendering items");
+  const _renderItem = ({ item }) => (
+    <Item
+      id={item.email}
+      title={`${item.name.title} ${item.name.first} ${item.name.last}`}
+      avatarUrl={item.picture.thumbnail}
+      selected={selected.has(item.email)}
+      onClick={onClick}
+    />
+  );
   return (
     <FlatList
       data={data}
-      renderItem={({ item }) => (
-        <Item
-          id={item.id}
-          title={item.title}
-          selected={!!selected.get(item.id)}
-          onClick={onClick}
-        />
-      )}
-      keyExtractor={item => item.id}
+      renderItem={_renderItem}
+      keyExtractor={item => item.email}
       extraData={selected}
     />
   );
 };
 
 const App = () => {
-  const [selected, setSelected] = React.useState(Set());
-  const [searchKey, setSearchKey] = React.useState("");
-  const [searched, setSearched] = React.useState(DATA);
-  const [mode, setMode] = React.useState("search");
+  const [items, setItems] = useState([]);
+  const [selected, setSelected] = useState(Set());
+  const [searchKey, setSearchKey] = useState("");
+  const [searched, setSearched] = useState([]);
+  const [mode, setMode] = useState("search");
+
+  useEffect(() => {
+    const fetchData = async () => {
+      console.log("fetching data");
+      const results = await axios("https://randomuser.me/api/?results=5");
+      setItems(results.data.results);
+    };
+    fetchData();
+  }, []);
 
   const header = {
     search: (
@@ -71,9 +65,12 @@ const App = () => {
         onChangeText={text => {
           setSearchKey(text);
           setSearched(
-            DATA.filter(item =>
-              item.title.toLowerCase().includes(text.toLowerCase())
-            )
+            items.filter(item => {
+              const name = `${item.name.title} ${item.name.first} ${
+                item.name.last
+              }`;
+              return name.toLowerCase().includes(text.toLowerCase());
+            })
           );
         }}
         value={searchKey}
@@ -98,8 +95,8 @@ const App = () => {
   };
 
   const data = {
-    search: searched,
-    select: DATA
+    search: searchKey === "" ? items : searched,
+    select: items
   };
 
   const onClick = {
@@ -123,7 +120,7 @@ const App = () => {
   const buttonOnPress = {
     search: () => {
       setMode("select");
-      setSearched(DATA);
+      setSearched(items);
     },
     select: () => {
       setMode("search");
@@ -131,6 +128,7 @@ const App = () => {
     }
   };
 
+  // Perf issue: Every time selected change, Items get re-rendered
   return (
     <SafeAreaView style={styles.container}>
       {header[mode]}
