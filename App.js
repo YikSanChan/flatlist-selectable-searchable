@@ -1,12 +1,12 @@
 import React, { memo, useEffect, useState } from "react";
-import { SafeAreaView, FlatList, StyleSheet, View } from "react-native";
+import { FlatList, SafeAreaView, StyleSheet } from "react-native";
 import Constants from "expo-constants";
 import { Set } from "immutable";
-import { Button, Icon, ListItem, SearchBar } from "react-native-elements";
+import { Button, ListItem } from "react-native-elements";
 import axios from "axios";
 
 const Item = ({ id, title, avatarUrl, selected, onClick }) => {
-  console.log(`rendering item ${id}`);
+  console.log(`rendering item id=${id}, selected=${selected}`);
   return (
     <ListItem
       title={title}
@@ -21,14 +21,16 @@ const Item = ({ id, title, avatarUrl, selected, onClick }) => {
   );
 };
 
-const Items = ({ data, selected, onClick }) => {
+const MemoizedItem = memo(Item);
+
+const Items = ({ data, selectedItems, onClick }) => {
   console.log("rendering items");
   const _renderItem = ({ item }) => (
-    <Item
+    <MemoizedItem
       id={item.email}
       title={`${item.name.title} ${item.name.first} ${item.name.last}`}
       avatarUrl={item.picture.thumbnail}
-      selected={!!selected.get(item.email)}
+      selected={selectedItems.has(item.email)}
       onClick={onClick}
     />
   );
@@ -37,103 +39,103 @@ const Items = ({ data, selected, onClick }) => {
       data={data}
       renderItem={_renderItem}
       keyExtractor={item => item.email}
-      extraData={selected}
+      extraData={selectedItems}
     />
   );
 };
 
 const App = () => {
   const [items, setItems] = useState([]);
-  const [selected, setSelected] = useState(Set());
-  const [searchKey, setSearchKey] = useState("");
-  const [searched, setSearched] = useState([]);
-  const [mode, setMode] = useState("search");
+  const [selectedItems, setSelectedItems] = useState(Set());
 
   useEffect(() => {
     const fetchData = async () => {
       console.log("fetching data");
+      // Read 5 random users back
+      // Each user is like this:
+      // {
+      //   "gender":"male",
+      //     "name":{
+      //   "title":"Mr",
+      //       "first":"Harley",
+      //       "last":"Zhang"
+      // },
+      //   "location":{
+      //   "street":{
+      //     "number":6470,
+      //         "name":"Buckleys Road"
+      //   },
+      //   "city":"Palmerston North",
+      //       "state":"Manawatu-Wanganui",
+      //       "country":"New Zealand",
+      //       "postcode":90911,
+      //       "coordinates":{
+      //     "latitude":"66.2907",
+      //         "longitude":"-18.0881"
+      //   },
+      //   "timezone":{
+      //     "offset":"+8:00",
+      //         "description":"Beijing, Perth, Singapore, Hong Kong"
+      //   }
+      // },
+      //   "email":"harley.zhang@example.com",
+      //     "login":{
+      //   "uuid":"6fda195e-3e63-476c-84d0-7c577c7b74f9",
+      //       "username":"smallbear541",
+      //       "password":"daisy1",
+      //       "salt":"p6AmByUq",
+      //       "md5":"0358f2385a9936369adc89b9233f037b",
+      //       "sha1":"8decc817cf32ca6e58814502bb3e54152208c5b5",
+      //       "sha256":"96ff7627348250646edd31238504271840a0cb6aaac293782f7eec1a6f884c07"
+      // },
+      //   "dob":{
+      //   "date":"1987-12-07T13:00:15.244Z",
+      //       "age":33
+      // },
+      //   "registered":{
+      //   "date":"2008-01-23T19:33:01.672Z",
+      //       "age":12
+      // },
+      //   "phone":"(474)-743-9612",
+      //     "cell":"(539)-021-1315",
+      //     "id":{
+      //   "name":"",
+      //       "value":null
+      // },
+      //   "picture":{
+      //   "large":"https://randomuser.me/api/portraits/men/49.jpg",
+      //       "medium":"https://randomuser.me/api/portraits/med/men/49.jpg",
+      //       "thumbnail":"https://randomuser.me/api/portraits/thumb/men/49.jpg"
+      // },
+      //   "nat":"NZ"
+      // }
       const results = await axios("https://randomuser.me/api/?results=5");
       setItems(results.data.results);
     };
     fetchData();
   }, []);
 
-  const header = {
-    search: (
-      <SearchBar
-        placeholder="Type Here..."
-        onChangeText={text => {
-          setSearchKey(text);
-          setSearched(
-            items.filter(item => {
-              const name = `${item.name.title} ${item.name.first} ${
-                item.name.last
-              }`;
-              return name.toLowerCase().includes(text.toLowerCase());
-            })
-          );
-        }}
-        value={searchKey}
-      />
-    ),
-    select: (
-      <View
-        style={{ flexDirection: "row", justifyContent: "flex-end", height: 58 }}
-      >
-        <Icon
-          name="printer"
-          type="antdesign"
-          onPress={() => console.log(`Print ${selected}`)}
-        />
-        <Icon
-          name="delete"
-          type="antdesign"
-          onPress={() => console.log(`Delete ${selected}`)}
-        />
-      </View>
-    )
-  };
+  const onClickUseCallBack = React.useCallback(id => {
+    setSelectedItems(selectedItems => {
+      return selectedItems.has(id)
+        ? selectedItems.delete(id)
+        : selectedItems.add(id);
+    });
+  }, []);
 
-  const data = {
-    search: searchKey === "" ? items : searched,
-    select: items
-  };
+  console.log("rendering app")
 
-  const onClick = {
-    search: id => console.log(`Press on ${id}`),
-    select: React.useCallback(
-      id => {
-        const newSelected = selected.has(id)
-          ? selected.delete(id)
-          : selected.add(id);
-        setSelected(newSelected);
-      },
-      [selected]
-    )
-  };
-
-  const buttonTitle = {
-    search: "Select",
-    select: "Search"
-  };
-
-  const buttonOnPress = {
-    search: () => {
-      setMode("select");
-      setSearched(items);
-    },
-    select: () => {
-      setMode("search");
-      setSelected(Set());
-    }
-  };
-
-  // Perf issue: Every time selected change, Items get re-rendered
   return (
     <SafeAreaView style={styles.container}>
-      {header[mode]}
-      <Items data={data[mode]} selected={selected} onClick={onClick[mode]} />
-      <Button title={buttonTitle[mode]} onPress={buttonOnPress[mode]} />
+      <Items
+        data={items}
+        selectedItems={selectedItems}
+        onClick={onClickUseCallBack}
+      />
+      <Button
+        title="Print"
+        onPress={() => console.log(`Printing selected items ${selectedItems}`)}
+      />
     </SafeAreaView>
   );
 };
@@ -150,8 +152,5 @@ const styles = StyleSheet.create({
     backgroundColor: "#f9c2ff",
     padding: 20,
     marginVertical: 8
-  },
-  title: {
-    fontSize: 32
   }
 });
