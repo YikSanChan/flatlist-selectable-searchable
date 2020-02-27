@@ -28,22 +28,24 @@ const PAGE_SIZE = 10;
 // With pagination support to avoid wasting resource in loading unseen rows
 const Items = ({ data, selected, onClick }) => {
   const [seenData, setSeenData] = useState([]);
-  const [page, setPage] = useState(1); // load 1 page for the first time
+  const [page, setPage] = useState(0); // load 1 page for the first time
   const maxPage = Math.floor((data.length - 1) / PAGE_SIZE) + 1;
 
   useEffect(
     () => {
-      console.log("side effect...");
+      console.log("side effect on new page");
       setSeenData(data.slice(0, page * PAGE_SIZE));
     },
+    [page]
+  );
 
-    [
-      // handleEnd increments page
-      page,
-      // the data props won't be ready when Items is first rendered
-      // need to watch here when data props become ready so that we trigger a re-render
-      data
-    ]
+  useEffect(
+    () => {
+      console.log("side effect on new data")
+      setPage(1);
+      setSeenData(data.slice(0, PAGE_SIZE)); // Cannot move it to above effect
+    },
+    [data]
   );
 
   function handleEndReached() {
