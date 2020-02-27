@@ -29,6 +29,7 @@ const PAGE_SIZE = 10;
 const Items = ({ data, selected, onClick }) => {
   const [seenData, setSeenData] = useState([]);
   const [page, setPage] = useState(1); // load 1 page for the first time
+  const maxPage = Math.floor((data.length - 1) / PAGE_SIZE) + 1;
 
   useEffect(
     () => {
@@ -47,11 +48,15 @@ const Items = ({ data, selected, onClick }) => {
 
   function handleEndReached() {
     console.log("handle end...");
-    setPage(page + 1);
+    if (page < maxPage) setPage(page + 1);
   }
 
   console.log("rendering items");
-  console.log(`data=${data.length}, seenData=${seenData.length}, page=${page}`);
+  console.log(
+    `data=${data.length}, seenData=${
+      seenData.length
+    }, page=${page}, maxPage=${maxPage}`
+  );
   const _renderItem = ({ item }) => (
     <MemoizedItem
       id={item.email}
