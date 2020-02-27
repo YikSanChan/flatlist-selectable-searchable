@@ -23,8 +23,35 @@ const Item = ({ id, title, avatarUrl, selected, onClick }) => {
 
 const MemoizedItem = memo(Item);
 
+const PAGE_SIZE = 10;
+
+// With pagination support to avoid wasting resource in loading unseen rows
 const Items = ({ data, selected, onClick }) => {
+  const [seenData, setSeenData] = useState([]);
+  const [page, setPage] = useState(1); // load 1 page for the first time
+
+  useEffect(
+    () => {
+      console.log("side effect...");
+      setSeenData(data.slice(0, page * PAGE_SIZE));
+    },
+
+    [
+      // handleEnd increments page
+      page,
+      // the data props won't be ready when Items is first rendered
+      // need to watch here when data props become ready so that we trigger a re-render
+      data
+    ]
+  );
+
+  function handleEndReached() {
+    console.log("handle end...");
+    setPage(page + 1);
+  }
+
   console.log("rendering items");
+  console.log(`data=${data.length}, seenData=${seenData.length}, page=${page}`);
   const _renderItem = ({ item }) => (
     <MemoizedItem
       id={item.email}
@@ -34,12 +61,16 @@ const Items = ({ data, selected, onClick }) => {
       onClick={onClick}
     />
   );
+  // TODO: onEndReached triggered twice.
+  // Possible fix: https://github.com/facebook/react-native/issues/14015#issuecomment-310675650
   return (
     <FlatList
-      data={data}
+      data={seenData}
       renderItem={_renderItem}
       keyExtractor={item => item.email}
       extraData={selected}
+      onEndReached={handleEndReached}
+      onEndReachedThreshold={0}
     />
   );
 };
@@ -54,7 +85,7 @@ const App = () => {
   useEffect(() => {
     const fetchData = async () => {
       console.log("fetching data");
-      const results = await axios("https://randomuser.me/api/?results=5");
+      const results = await axios("https://randomuser.me/api/?results=50");
       setItems(results.data.results);
     };
     fetchData();
@@ -126,7 +157,8 @@ const App = () => {
     }
   };
 
-  // Perf issue: Every time selected change, Items get re-rendered
+  console.log("rendering app");
+
   return (
     <SafeAreaView style={styles.container}>
       {header[mode]}
