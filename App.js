@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { memo, useEffect, useState } from "react";
 import { SafeAreaView, FlatList, StyleSheet, View } from "react-native";
 import Constants from "expo-constants";
 import { Set } from "immutable";
@@ -21,10 +21,12 @@ const Item = ({ id, title, avatarUrl, selected, onClick }) => {
   );
 };
 
+const MemoizedItem = memo(Item);
+
 const Items = ({ data, selected, onClick }) => {
   console.log("rendering items");
   const _renderItem = ({ item }) => (
-    <Item
+    <MemoizedItem
       id={item.email}
       title={`${item.name.title} ${item.name.first} ${item.name.last}`}
       avatarUrl={item.picture.thumbnail}
@@ -101,15 +103,11 @@ const App = () => {
 
   const onClick = {
     search: id => console.log(`Press on ${id}`),
-    select: React.useCallback(
-      id => {
-        const newSelected = selected.has(id)
-          ? selected.delete(id)
-          : selected.add(id);
-        setSelected(newSelected);
-      },
-      [selected]
-    )
+    select: React.useCallback(id => {
+      setSelected(
+        selected => (selected.has(id) ? selected.delete(id) : selected.add(id))
+      );
+    }, [])
   };
 
   const buttonTitle = {
