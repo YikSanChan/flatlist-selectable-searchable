@@ -26,6 +26,7 @@ const MemoizedItem = memo(Item);
 const PAGE_SIZE = 10;
 
 // With pagination support to avoid wasting resource in loading unseen rows
+// selected is nullable in non select mode
 const Items = ({ data, selected, onClick }) => {
   const [seenData, setSeenData] = useState([]);
   const [page, setPage] = useState(0); // load 1 page for the first time
@@ -41,7 +42,7 @@ const Items = ({ data, selected, onClick }) => {
 
   useEffect(
     () => {
-      console.log("side effect on new data")
+      console.log("side effect on new data");
       setPage(1);
       setSeenData(data.slice(0, PAGE_SIZE)); // Cannot move it to above effect
     },
@@ -64,7 +65,7 @@ const Items = ({ data, selected, onClick }) => {
       id={item.email}
       title={`${item.name.title} ${item.name.first} ${item.name.last}`}
       avatarUrl={item.picture.thumbnail}
-      selected={selected.has(item.email)}
+      selected={selected && selected.has(item.email)}
       onClick={onClick}
     />
   );
@@ -82,41 +83,15 @@ const Items = ({ data, selected, onClick }) => {
   );
 };
 
-const App = () => {
-  const [items, setItems] = useState([]);
+const SelectableList = ({ data }) => {
   const [selected, setSelected] = useState(Set());
-  const [searchKey, setSearchKey] = useState("");
-  const [searched, setSearched] = useState([]);
-  const [mode, setMode] = useState("search");
-
-  useEffect(() => {
-    const fetchData = async () => {
-      console.log("fetching data");
-      const results = await axios("https://randomuser.me/api/?results=50");
-      setItems(results.data.results);
-    };
-    fetchData();
+  const onHandleSelect = React.useCallback(id => {
+    setSelected(
+      selected => (selected.has(id) ? selected.delete(id) : selected.add(id))
+    );
   }, []);
-
-  const header = {
-    search: (
-      <SearchBar
-        placeholder="Type Here..."
-        onChangeText={text => {
-          setSearchKey(text);
-          setSearched(
-            items.filter(item => {
-              const name = `${item.name.title} ${item.name.first} ${
-                item.name.last
-              }`;
-              return name.toLowerCase().includes(text.toLowerCase());
-            })
-          );
-        }}
-        value={searchKey}
-      />
-    ),
-    select: (
+  return (
+    <>
       <View
         style={{ flexDirection: "row", justifyContent: "flex-end", height: 58 }}
       >
@@ -131,22 +106,58 @@ const App = () => {
           onPress={() => console.log(`Delete ${selected}`)}
         />
       </View>
-    )
-  };
+      <Items data={data} selected={selected} onClick={onHandleSelect} />
+    </>
+  );
+};
 
-  const data = {
-    search: searchKey === "" ? items : searched,
-    select: items
-  };
+// TODO: Remove selected
+const SearchableList = ({ data }) => {
+  const [searchKey, setSearchKey] = useState("");
+  const [searched, setSearched] = useState([]);
+  const onHandleSearch = id => console.log(`Press on ${id}`);
+  return (
+    <>
+      <SearchBar
+        placeholder="Type Here..."
+        onChangeText={text => {
+          setSearchKey(text);
+          setSearched(
+            data.filter(item => {
+              const name = `${item.name.title} ${item.name.first} ${
+                item.name.last
+              }`;
+              return name.toLowerCase().includes(text.toLowerCase());
+            })
+          );
+        }}
+        value={searchKey}
+      />
+      <Items
+        data={searchKey === "" ? data : searched}
+        onClick={onHandleSearch}
+      />
+    </>
+  );
+};
 
-  const onClick = {
-    search: id => console.log(`Press on ${id}`),
-    select: React.useCallback(id => {
-      setSelected(
-        selected => (selected.has(id) ? selected.delete(id) : selected.add(id))
-      );
-    }, [])
-  };
+const App = () => {
+  const [items, setItems] = useState([]);
+  const [mode, setMode] = useState("search");
+
+  useEffect(() => {
+    const fetchData = async () => {
+      console.log("fetching data");
+      const results = await axios("https://randomuser.me/api/?results=50");
+      setItems(results.data.results);
+    };
+    fetchData();
+  }, []);
+
+  // const data = {
+  //   search: searchKey === "" ? items : searched,
+  //   select: items
+  // };
 
   const buttonTitle = {
     search: "Select",
@@ -156,11 +167,11 @@ const App = () => {
   const buttonOnPress = {
     search: () => {
       setMode("select");
-      setSearched(items);
+      // setSearched(items);
     },
     select: () => {
       setMode("search");
-      setSelected(Set());
+      // setSelected(Set());
     }
   };
 
@@ -168,8 +179,11 @@ const App = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {header[mode]}
-      <Items data={data[mode]} selected={selected} onClick={onClick[mode]} />
+      {mode === "search" ? (
+        <SearchableList data={items} />
+      ) : (
+        <SelectableList data={items} />
+      )}
       <Button title={buttonTitle[mode]} onPress={buttonOnPress[mode]} />
     </SafeAreaView>
   );
